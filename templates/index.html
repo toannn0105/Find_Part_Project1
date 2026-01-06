@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+    <style>
+        :root {
+            /* Define new color palette for consistency */
+            --primary-color: #007bff; /* Electric Blue */
+            --secondary-color: #6c757d; /* Soft Gray */
+            --background-light: #f8f9fa; /* Very Light Gray */
+            --panel-bg: rgba(255, 255, 255, 0.85); /* Semi-transparent White */
+            --text-color-dark: #212529;
+            --border-color: rgba(0, 123, 255, 0.2);
+            --shadow-soft: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            font-family: 'Roboto', sans-serif; /* Apply new font */
+            background-color: var(--background-light);
+        }
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        .control-panel {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            z-index: 1000;
+            /* Glassmorphism/Modern Look */
+            background: var(--panel-bg);
+            backdrop-filter: blur(10px); /* Key for glassmorphism */
+            -webkit-backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 18px;
+            box-shadow: var(--shadow-soft);
+            border: 1px solid var(--border-color);
+            min-width: 280px;
+            max-width: 350px;
+            animation: fadeInPanel 0.7s;
+            transition: box-shadow 0.3s;
+        }
+        @keyframes fadeInPanel {
+            from { opacity: 0; transform: translateY(-20px);}
+            to { opacity: 1; transform: translateY(0);}
+        }
+
+        /* --- Panel Content Styles --- */
+        .control-panel h5 {
+            margin-bottom: 20px;
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            text-align: center;
+        }
+        .control-panel label {
+            font-weight: 500;
+            color: var(--text-color-dark);
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        /* Form Controls */
+        .form-control, select {
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            font-size: 1rem;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .form-control:focus, select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+
+        /* Buttons */
+        .btn {
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+            border-radius: 10px;
+            font-weight: 500;
+            padding: 10px 15px;
+            transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .btn-group-toggle .btn {
+            margin-bottom: 0;
+        }
+        .btn-primary {
+            background: var(--primary-color);
+            border: none;
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: #0056b3; /* Darker blue on hover */
+            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
+            transform: translateY(-1px);
+        }
+        
+        /* Secondary/Toggle Buttons for a cleaner look */
+        .btn-outline-primary {
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            background: transparent;
+        }
+        .btn-outline-primary:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        /* Active Toggle State */
+        .btn-outline-primary.active {
+            background: var(--primary-color);
+            color: white;
+            box-shadow: 0 2px 5px rgba(0, 123, 255, 0.4);
+        }
+        
+        /* Result Panel */
+        #distance-time-result {
+            margin-top: 20px;
+            padding: 15px;
+            background: var(--background-light); /* Lighter background for results */
+            border: 1px dashed var(--border-color);
+            border-radius: 12px;
+            color: var(--text-color-dark);
+            font-size: 1.05rem;
+            line-height: 1.6;
+            min-height: 50px;
+            font-weight: 400;
+        }
+        #distance-time-result b {
+            font-weight: 700;
+            color: #343a40;
+        }
+
+    </style>
+    <title>Minimalist Navigator Map</title>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <div class="control-panel">
+        <h5>🌍 Minimalist Navigator</h5>
+
+        <div class="form-group">
+            <label for="algorithmSelect">Chọn Thuật toán Tìm kiếm:</label>
+            <select id="algorithmSelect" class="form-control">
+                <option value="Dijkstra">Dijkstra (BFS)</option>
+                <option value="A Star">A Star</option>
+                <option value="UCS">Uniform Cost Search</option>
+                <option value="Greedy BFS">Greedy Best-First Search</option>
+                <option value="DFS">Depth First Search</option>
+            </select>
+        </div>
+
+        <button id="runSearchBtn" class="btn btn-primary w-100 mb-2" disabled>Bắt đầu tìm đường</button>
+
+        <div class="btn-group btn-group-toggle w-100" data-toggle="buttons" role="group">
+            <button id="toggleNodes" class="btn btn-outline-primary w-50 active">Hiện Nodes</button>
+            <button id="togglePaths" class="btn btn-outline-primary w-50 active">Hiện Paths</button>
+        </div>
+        
+        <small class="form-text text-muted mb-3 mt-1 text-center">
+            Click vào bản đồ 2 lần để chọn điểm Bắt đầu/Kết thúc, sau đó nhấn nút "Bắt đầu tìm đường".
+        </small>
+        
+        <hr class="my-3" style="border-top: 1px solid rgba(0, 123, 255, 0.1);">
+
+        <div id="distance-time-result">
+            Chờ người dùng chọn điểm...
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        // Khởi tạo bản đồ
+        var map = L.map('map').setView([21.033, 105.825], 15);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Safely pass the Python data (assuming you are using a Python backend like Flask)
+        // **Chú ý:** Các biến này (node_coords, path_coords) cần được render từ backend của bạn
+        var nodes = JSON.parse('{{ node_coords|tojson|safe }}' || '[]');
+        var paths = JSON.parse('{{ path_coords|tojson|safe }}' || '[]');
+
+        // Tạo các layer group
+        var nodeMarkers = L.layerGroup();
+        var pathMarkers = L.layerGroup();
+
+        // Thêm markers cho nodes
+        nodes.forEach(function(coord) {
+            var marker = L.circleMarker(coord, {
+                radius: 4, // Giảm kích thước node một chút cho tinh tế
+                color: '#007bff',
+                fillColor: '#007bff',
+                fillOpacity: 0.7
+            });
+            marker.addTo(nodeMarkers);
+        });
+        nodeMarkers.addTo(map); // Mặc định hiển thị
+
+        // Thêm polylines cho paths
+        paths.forEach(function(path) {
+            var polyline = L.polyline(path, { color: '#6c757d', weight: 2, opacity: 0.6 }); // Màu xám, mỏng hơn
+            polyline.addTo(pathMarkers);
+        });
+        pathMarkers.addTo(map); // Mặc định hiển thị
+
+        // Xử lý nút Toggle Nodes
+        document.getElementById('toggleNodes').addEventListener('click', function() {
+            var btn = this;
+            if (map.hasLayer(nodeMarkers)) {
+                map.removeLayer(nodeMarkers);
+                btn.classList.remove('active');
+            } else {
+                map.addLayer(nodeMarkers);
+                btn.classList.add('active');
+            }
+        });
+
+        // Xử lý nút Toggle Paths
+        document.getElementById('togglePaths').addEventListener('click', function() {
+            var btn = this;
+            if (map.hasLayer(pathMarkers)) {
+                map.removeLayer(pathMarkers);
+                btn.classList.remove('active');
+            } else {
+                map.addLayer(pathMarkers);
+                btn.classList.add('active');
+            }
+        });
+
+        // Biến toàn cục cho tương tác trên bản đồ
+        var click_coords = [];
+        var start_marker, end_marker, shortest_path_polyline; 
+        var runSearchBtn = document.getElementById('runSearchBtn');
+        var isComputingPath = false;
+        
+        // Cập nhật: Icon đẹp hơn cho Start/End - Dấu ghim tương tự Google Maps
+        var startIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png', // Dấu ghim màu xanh
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+        var endIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', // Dấu ghim màu đỏ
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+
+        function updateRunButtonState() {
+            runSearchBtn.disabled = isComputingPath || click_coords.length !== 2;
+        }
+
+        function resetSelectionVisuals() {
+            if (start_marker) { map.removeLayer(start_marker); start_marker = null; }
+            if (end_marker) { map.removeLayer(end_marker); end_marker = null; }
+            if (shortest_path_polyline) { map.removeLayer(shortest_path_polyline); shortest_path_polyline = null; }
+        }
+
+        function executePathSearch() {
+            if (click_coords.length !== 2) {
+                alert("Vui lòng chọn đủ điểm bắt đầu và kết thúc trước khi tìm đường.");
+                return;
+            }
+            isComputingPath = true;
+            updateRunButtonState();
+            $('#distance-time-result').html("Đang tính toán đường đi...");
+            var algorithm = document.getElementById('algorithmSelect').value;
+
+            $.ajax({
+                url: "/find_shortest_path",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    start: click_coords[0],
+                    end: click_coords[1],
+                    algorithm: algorithm,
+                    max_depth: 0 
+                }),
+                success: function(response) {
+                    if (shortest_path_polyline) map.removeLayer(shortest_path_polyline);
+                    var latlngs = response.path_coords;
+                    shortest_path_polyline = L.polyline(latlngs, { color: '#34c759', weight: 6, opacity: 0.95 }).addTo(map);
+                    map.fitBounds(shortest_path_polyline.getBounds(), { padding: [50, 50] });
+
+                    $.ajax({
+                        url: "/estimate_distance_time",
+                        type: "POST",
+                        contentType: "application/json",
+                        data: JSON.stringify({
+                            start: click_coords[0],
+                            end: click_coords[1],
+                            speed: 1.39 
+                        }),
+                        success: function(response) {
+                            var distance = response.distance_m ? response.distance_m.toFixed(1) : "N/A";
+                            var time = response.estimated_time_s ? (response.estimated_time_s/60).toFixed(1) : "N/A";
+                            
+                            $('#distance-time-result').html(
+                                "<b>✨ Kết quả tính toán</b><br>" +
+                                "<i class='fas fa-road'></i> <b>Khoảng cách:</b> " + distance + " m<br>" +
+                                "<i class='fas fa-clock'></i> <b>Thời gian:</b> " + time + " phút (v=" + (1.39 * 3.6).toFixed(1) + " km/h)"
+                            );
+                        },
+                        error: function(error) {
+                            $('#distance-time-result').html("<b>⚠️ Lỗi:</b> Không thể tính khoảng cách/thời gian.");
+                        },
+                        complete: function() {
+                            isComputingPath = false;
+                            updateRunButtonState();
+                        }
+                    });
+                },
+                error: function(error) {
+                    console.error(error);
+                    var message = (error.responseJSON && error.responseJSON.error) ? error.responseJSON.error : "Không xác định";
+                    $('#distance-time-result').html("<b>⚠️ Lỗi:</b> Không tìm thấy đường đi (" + message + ")");
+                    isComputingPath = false;
+                    updateRunButtonState();
+                }
+            });
+        }
+
+        runSearchBtn.addEventListener('click', executePathSearch);
+
+        map.on('click', function(e) {
+            if (isComputingPath) {
+                return;
+            }
+            if (click_coords.length >= 2) {
+                click_coords = [];
+                resetSelectionVisuals();
+                $('#distance-time-result').html("Chờ người dùng chọn điểm...");
+            }
+
+            var lat = e.latlng.lat;
+            var lng = e.latlng.lng;
+
+            click_coords.push([lat, lng]);
+
+            if (click_coords.length == 1) {
+                start_marker = L.marker([lat, lng], { icon: startIcon }).addTo(map).bindPopup("Start Point").openPopup();
+                $('#distance-time-result').html("Đã chọn điểm bắt đầu. Vui lòng chọn điểm kết thúc.");
+            } else if (click_coords.length == 2) {
+                end_marker = L.marker([lat, lng], { icon: endIcon }).addTo(map).bindPopup("End Point").openPopup();
+                $('#distance-time-result').html("Sẵn sàng! Nhấn nút \"Bắt đầu tìm đường\" để xem kết quả.");
+            }
+            updateRunButtonState();
+        });
+    </script>
+</body>
+</html>
