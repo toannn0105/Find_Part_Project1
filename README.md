@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-# Find_Part_Project1
-=======
 # Hệ Thống Quản Lý Giao Thông Đường Phố
 
 ## Mô tả
@@ -68,5 +65,3 @@
 - `templates/`        : Giao diện HTML (index, admin_panel)
 - `noithanh_hanoi_graph.graphml` : File bản đồ
 
----
->>>>>>> 2a33456 (10)
